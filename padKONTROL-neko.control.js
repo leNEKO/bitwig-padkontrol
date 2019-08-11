@@ -141,7 +141,7 @@ function init() {
 		keyTranslationTableOff[i + 1] = -1
 	}
 
-	noteInput.setKeyTranslationTable(keyTranslationTableOff);
+	noteInput.setKeyTranslationTable(keyTranslationTable);
 
 	// transport
 	transport = host.createTransportSection();
@@ -415,41 +415,45 @@ function onPad(pad, isOn, velocity) {
 	var x = pad & 0x3;
 	var y = pad >> 2;
 
-	// if (tempMode == Mode.Drum) {
-	// 	var noteIndex = x + (3 - y) * 4;
-	// }
-
-	if (isOn) {
-		println([pad + 1, tempMode, mode]);
-		switch (tempMode) {
-			case Mode.Message:
-				switch (pad + 1) {
-					case 4:
-						transport.tapTempo();
-						break;
-					case 9:
-						transport.stop();
-						break;
-					case 11:
-						transport.incPosition(-8, false);
-						break;
-					case 12:
-						transport.incPosition(8, false);
-						break;
-					case 13:
-						transport.stop();
-						transport.play();
-						break;
-					case 14:
-						transport.play();
-						break;
-					case 16:
-						transport.fastForward();
-						break;
-				}
-				break;
-		}
+	if (tempMode == Mode.Drum) {
+		var noteIndex = x + (3 - y) * 4;
 	}
+
+	switch (tempMode) {
+		case Mode.Message:
+			switch (pad + 1) {
+				// tap tempo
+				case 4:
+					isOn ? transport.tapTempo() : false;
+					break;
+				// stop
+				case 9:
+					isOn ? transport.stop() : false;
+					break;
+				case 11:
+					isOn ? transport.incPosition(-8, false) : false;
+					break;
+				case 12:
+					isOn ? transport.incPosition(8, false) : false;
+					break;
+				// play
+				case 13:
+					isOn ? transport.stop() : transport.play();
+					break;
+				// pause / play
+				case 14:
+					isOn ? transport.play() : false;
+					break;
+				case 15:
+					isOn ? transport.rewind() : false;
+					break;
+				case 16:
+					isOn ? transport.fastForward() : false;
+					break;
+			}
+			break;
+	}
+
 }
 
 function setDisplay(text, blink) {
@@ -463,7 +467,7 @@ function setMode(m) {
 	switch (m) {
 		case Mode.Drum:
 			setDisplay("DRM", false);
-			noteInput.setKeyTranslationTable(keyTranslationTableOff);
+			noteInput.setKeyTranslationTable(keyTranslationTable);
 			break;
 	}
 }
