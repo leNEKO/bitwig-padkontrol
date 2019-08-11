@@ -15,10 +15,19 @@ else if (host.platformIsWindows()) {
 
 var Mode =
 {
-	Drum: 0,
-	Scene: 1,
-	Message: 2
+	Drum: -1,
+	Scene: 0,
+	Message: 1,
+	Pedal: 15,
 };
+
+var ModeTitle =
+{
+	"-1": "DRM",
+	0: "SCN",
+	1: "MSG",
+	15: "PDL"
+}
 
 var mode = Mode.Undefined;
 
@@ -245,12 +254,13 @@ function onSysex(data) {
 			case Button.MESSAGE:
 				setTempMode(button, buttonPressed);
 				break;
+
 			case Button.FIXED_VELOCITY:
 				break;
 
 			case Button.PROG_CHANGE:
 				setTempMode(button, buttonPressed);
-				// asetButtonLight(button, buttonPressed);
+				setButtonLight(button, buttonPressed);
 				break;
 
 			case Button.XY_PRESS:
@@ -264,6 +274,7 @@ function onSysex(data) {
 				break;
 			case Button.PEDAL:
 				setTempMode(button, buttonPressed);
+				setButtonLight(button, buttonPressed);
 				break;
 			case Button.VELOCITY:
 				break;
@@ -357,11 +368,13 @@ function onDataWheel(delta) {
 function setTempMode(button, pressed) {
 	if (pressed) {
 		tempMode = button;
-		println(tempMode);
+		noteInput.setKeyTranslationTable(keyTranslationTableOff);
 	}
 	else {
 		tempMode = Button.UNDEFINED;
+		noteInput.setKeyTranslationTable(keyTranslationTable);
 	}
+	setDisplay(ModeTitle[tempMode], false);
 }
 
 function updateIndications() {
@@ -396,8 +409,8 @@ function onPad(pad, isOn, velocity) {
 	}
 
 	if (isOn) {
-		println(pad + 1);
-		switch (mode) {
+		println([pad + 1, tempMode, mode]);
+		switch (tempMode) {
 			case Mode.Message:
 				switch (pad + 1) {
 					case 9:
@@ -444,6 +457,10 @@ function setMode(m) {
 			break;
 		case Mode.Message:
 			setDisplay("MSG", false);
+			noteInput.setKeyTranslationTable(keyTranslationTableOff);
+			break;
+		case Mode.Pedal:
+			setDisplay("PDL", false);
 			noteInput.setKeyTranslationTable(keyTranslationTableOff);
 			break;
 
