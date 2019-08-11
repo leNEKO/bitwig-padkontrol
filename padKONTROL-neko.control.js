@@ -127,6 +127,7 @@ function init() {
 	host.getMidiInPort(0).setSysexCallback(onSysex);
 	//noteInput.setShouldConsumeEvents(false);
 
+	// default notes
 	keyTranslationTable = initArray(0, 128);
 	for (var i = 0; i < 16; i++) {
 		var col = i & 3;
@@ -134,13 +135,13 @@ function init() {
 		keyTranslationTable[i + 1] = 36 + col + (3 - row) * 4;  // flip y-direction of pads to match the "standard" 16-pad layout
 	}
 
-	// off
+	// All notes off
 	keyTranslationTableOff = initArray(0, 128);
 	for (var i = 0; i < 16; i++) {
 		keyTranslationTableOff[i + 1] = -1
 	}
 
-	noteInput.setKeyTranslationTable(keyTranslationTable);
+	noteInput.setKeyTranslationTable(keyTranslationTableOff);
 
 	// transport
 	transport = host.createTransportSection();
@@ -231,7 +232,7 @@ function flush() {
 * @param {MidiMessage} msg
 */
 function onMidi(status, data1, data2) {
-	//printMidi(status, data1, data2);
+	printMidi(status, data1, data2);
 }
 
 /**
@@ -239,12 +240,15 @@ function onMidi(status, data1, data2) {
 */
 function onSysex(data) {
 	//printSysex(data);
+
 	if (data.matchesHexPattern("f042406e0848????f7"))  // NORMAL BUTTONS
 	{
 
 		var button = data.hexByteAt(6);
 		var value = data.hexByteAt(7);
 		var buttonPressed = value > 0;
+
+		println([button, value])
 
 		switch (button) {
 			case Button.SCENE:
@@ -260,7 +264,7 @@ function onSysex(data) {
 
 			case Button.PROG_CHANGE:
 				setTempMode(button, buttonPressed);
-				setButtonLight(button, buttonPressed);
+				// setButtonLight(button, buttonPressed);
 				break;
 
 			case Button.XY_PRESS:
@@ -274,7 +278,7 @@ function onSysex(data) {
 				break;
 			case Button.PEDAL:
 				setTempMode(button, buttonPressed);
-				setButtonLight(button, buttonPressed);
+				// setButtonLight(button, buttonPressed);
 				break;
 			case Button.VELOCITY:
 				break;
@@ -346,6 +350,11 @@ function onSysex(data) {
 		var velocity = data.hexByteAt(7);
 		onPad(padInfo & 0xF, (padInfo & 0x40), velocity);
 	}
+	else if (data.matchesHexPattern("F042406E084700??F7")) // Pedal
+	{
+		var pedalInfo = data.hexByteAt(7);
+		println(['pedalInfo', pedalInfo]);
+	}
 	else {
 		printSysex(data);
 	}
@@ -367,14 +376,16 @@ function onDataWheel(delta) {
 
 function setTempMode(button, pressed) {
 	if (pressed) {
-		tempMode = button;
 		noteInput.setKeyTranslationTable(keyTranslationTableOff);
+		tempMode = button;
 	}
 	else {
-		tempMode = Button.UNDEFINED;
 		noteInput.setKeyTranslationTable(keyTranslationTable);
+		tempMode = Button.UNDEFINED;
 	}
-	setDisplay(ModeTitle[tempMode], false);
+	if (ModeTitle[tempMode] != undefined) {
+		setDisplay(ModeTitle[tempMode], false);
+	}
 }
 
 function updateIndications() {
@@ -404,17 +415,26 @@ function onPad(pad, isOn, velocity) {
 	var x = pad & 0x3;
 	var y = pad >> 2;
 
-	if (mode == Mode.Drum) {
-		var noteIndex = x + (3 - y) * 4;
-	}
+	// if (tempMode == Mode.Drum) {
+	// 	var noteIndex = x + (3 - y) * 4;
+	// }
 
 	if (isOn) {
 		println([pad + 1, tempMode, mode]);
 		switch (tempMode) {
 			case Mode.Message:
 				switch (pad + 1) {
+					case 4:
+						transport.tapTempo();
+						break;
 					case 9:
 						transport.stop();
+						break;
+					case 11:
+						transport.incPosition(-8, false);
+						break;
+					case 12:
+						transport.incPosition(8, false);
 						break;
 					case 13:
 						transport.stop();
@@ -423,14 +443,8 @@ function onPad(pad, isOn, velocity) {
 					case 14:
 						transport.play();
 						break;
-					case 4:
-						transport.tapTempo();
-						break;
-					case 15:
-						transport.incPosition(-8, false);
-						break;
 					case 16:
-						transport.incPosition(8, false);
+						transport.fastForward();
 						break;
 				}
 				break;
@@ -449,21 +463,8 @@ function setMode(m) {
 	switch (m) {
 		case Mode.Drum:
 			setDisplay("DRM", false);
-			noteInput.setKeyTranslationTable(keyTranslationTable);
-			break;
-		case Mode.Scene:
-			setDisplay("SCN", false);
 			noteInput.setKeyTranslationTable(keyTranslationTableOff);
 			break;
-		case Mode.Message:
-			setDisplay("MSG", false);
-			noteInput.setKeyTranslationTable(keyTranslationTableOff);
-			break;
-		case Mode.Pedal:
-			setDisplay("PDL", false);
-			noteInput.setKeyTranslationTable(keyTranslationTableOff);
-			break;
-
 	}
 }
 
