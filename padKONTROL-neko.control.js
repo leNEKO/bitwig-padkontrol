@@ -31,6 +31,12 @@ var ModeTitle =
 
 var mode = Mode.Undefined;
 
+var pedal = {
+	root: 36,
+	offset: 0,
+	velocity: 127
+}
+
 var Light =
 {
 	PAD01: 0,
@@ -348,12 +354,16 @@ function onSysex(data) {
 	{
 		var padInfo = data.hexByteAt(6);
 		var velocity = data.hexByteAt(7);
+		println(['padInfo', padInfo]);
 		onPad(padInfo & 0xF, (padInfo & 0x40), velocity);
 	}
 	else if (data.matchesHexPattern("F042406E084700??F7")) // Pedal
 	{
-		var pedalInfo = data.hexByteAt(7);
-		println(['pedalInfo', pedalInfo]);
+		noteInput.sendRawMidiEvent(
+			data.hexByteAt(7) ? 0x91 : 0x81,
+			pedal.root + pedal.offset,
+			pedal.velocity
+		);
 	}
 	else {
 		printSysex(data);
@@ -374,9 +384,9 @@ function onDataWheel(delta) {
 	}
 }
 
-function setTempMode(button, pressed) {
+function setTempMode(button, pressed, noteOff) {
 	if (pressed) {
-		noteInput.setKeyTranslationTable(keyTranslationTableOff);
+		noteInput.setKeyTranslationTable(noteOff ? keyTranslationTableOff : keyTranslationTable);
 		tempMode = button;
 	}
 	else {
@@ -414,10 +424,7 @@ function showMacroOffsetInDisplay() {
 function onPad(pad, isOn, velocity) {
 	var x = pad & 0x3;
 	var y = pad >> 2;
-
-	if (tempMode == Mode.Drum) {
-		var noteIndex = x + (3 - y) * 4;
-	}
+	var noteIndex = x + (3 - y) * 4;
 
 	switch (tempMode) {
 		case Mode.Message:
@@ -450,6 +457,13 @@ function onPad(pad, isOn, velocity) {
 				case 16:
 					isOn ? transport.fastForward() : false;
 					break;
+			}
+			break;
+		case Mode.Pedal:
+			if (isOn) {
+				pedal.offset = noteIndex;
+				pedal.velocity = velocity;
+				println([pedal.offset, pedal.velocity])
 			}
 			break;
 	}
