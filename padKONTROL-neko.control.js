@@ -262,7 +262,7 @@ function onSysex(data) {
 				break;
 
 			case Button.MESSAGE:
-				setTempMode(button, buttonPressed);
+				setTempMode(button, buttonPressed, true);
 				break;
 
 			case Button.FIXED_VELOCITY:
